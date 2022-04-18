@@ -49,6 +49,10 @@ final class NetworkViewModel: NSObject, NSFetchedResultsControllerDelegate, Obse
         }.store(in: &cancellables)
 
         refreshNow()
+
+        store.backgroundContext.perform {
+            self.getAllDomains()
+        }
     }
 
     // MARK: Refresh
@@ -78,6 +82,17 @@ final class NetworkViewModel: NSObject, NSFetchedResultsControllerDelegate, Obse
         self.didRefreshEntities()
     }
 
+    func controller(_ controller: NSFetchedResultsController<NSFetchRequestResult>, didChange anObject: Any, at indexPath: IndexPath?, for type: NSFetchedResultsChangeType, newIndexPath: IndexPath?) {
+        switch type {
+        case .insert:
+            if let entity = anObject as? LoggerNetworkRequestEntity {
+                searchCriteria.didInsertEntity(entity)
+            }
+        default:
+            break
+        }
+    }
+
     private func didRefreshEntities() {
         var entities: AnyCollection<LoggerNetworkRequestEntity>
 
@@ -90,5 +105,27 @@ final class NetworkViewModel: NSObject, NSFetchedResultsControllerDelegate, Obse
         }
 
         self.entities = entities
+    }
+
+    // MARK: - Misc
+
+    private func getAllDomains() {
+        let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "\(LoggerNetworkRequestEntity.self)")
+
+        // Required! Unless you set the resultType to NSDictionaryResultType, distinct can't work.
+        // All objects in the backing store are implicitly distinct, but two dictionaries can be duplicates.
+        // Since you only want distinct names, only ask for the 'name' property.
+        fetchRequest.resultType = .dictionaryResultType
+        fetchRequest.propertiesToFetch = ["host"]
+        fetchRequest.returnsDistinctResults = true
+
+        // Now it should yield an NSArray of distinct values in dictionaries.
+        let map = (try? store.backgroundContext.fetch(fetchRequest)) ?? []
+        let values = (map as? [[String: String]])?.compactMap { $0["host"] }
+        let set = Set(values ?? [])
+
+        DispatchQueue.main.async {
+            self.searchCriteria.setInitialDomains(set)
+        }
     }
 }

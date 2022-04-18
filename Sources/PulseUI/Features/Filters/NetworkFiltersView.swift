@@ -58,6 +58,16 @@ struct NetworkFiltersView: View {
             )) {
                 timePeriodGroup
             }
+
+            Section(header: FilterSectionHeader(
+                icon: "server.rack", title: "Host",
+                color: .yellow,
+                reset: { viewModel.criteria.host = .default },
+                isDefault: viewModel.criteria.host == .default,
+                isEnabled: $viewModel.criteria.host.isEnabled
+            )) {
+                domainsGroup
+            }
         }
         .navigationBarTitle("Filters")
         .navigationBarItems(leading: buttonClose, trailing: buttonReset)
@@ -121,6 +131,16 @@ struct NetworkFiltersView: View {
             Button("Today") { viewModel.criteria.dates = .today }
             Spacer()
         }.buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var domainsGroup: some View {
+        Picker("Domain", selection: $viewModel.criteria.host.value) {
+            Text("Any").tag("")
+            ForEach(viewModel.allDomains, id: \.self) {
+                Text($0).tag($0)
+            }
+        }
     }
 }
 
